@@ -1,4 +1,4 @@
-# <INSERT CLEVER PROJECT NAME HERE>
+# \<INSERT CLEVER PROJECT NAME HERE>
 
 This is going to be an IRC proxy.  Right now it's an IRC... vacuum?
 
