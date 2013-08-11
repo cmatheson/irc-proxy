@@ -1,50 +1,54 @@
 (ns irc-proxy.core
   (:require [clojure.core.async :as async :refer :all]
-            [clojure.java.io :as io])
+            [irc-proxy.irc :as irc])
   (:import java.net.ServerSocket))
 
-(defn client-chan
-  "returns a new channel to deal with client events"
-  [client-socket]
-  (let [in (io/reader client-socket)
-        c (chan)]
+(defn server-chan
+  "starts a server-loop, returns a channel that receives new client sockets"
+  []
+  (let [c (chan)
+        srv (ServerSocket. 6667)]
     (thread
-      (loop []
-        (if-let [line (.readLine in)]
-          (do
-            (>!! c line)
-            (recur))
-          (>!! c :disconnected))))
-    c))
-
-(defn start-server
-  "starts a server-loop, sends new client sockets to the given channel"
-  [c]
-  (let [srv (ServerSocket. 6667)]
-    (while true
-      (let [client (.accept srv)]
-        (go (>! c client))))
+      (while true
+        (let [client (.accept srv)]
+          (go (>! c client)))))
     c))
 
 (defn -main []
-  (let [server-chan (chan)
-        quit (chan)]
+  (let [client-connection-chan (chan)]
 
-    (thread
-      (loop [chans [server-chan]]
-        (println (format "%4d clients" (- (count chans) 1)))
-        (let [[v channel] (alts!! chans)]
-          (cond
-            (= channel server-chan)
-            (recur (conj chans (client-chan v)))
+    (loop [add-chan (server-chan)
+           server (irc/server "irc.freenode.net" 6667)
+           clients #{}]
 
-            (= v :disconnected)
-            (recur (remove #(= channel %) chans))
+      (let [server-chan (:chan server)
+            client-chans (set (map :chan clients))
+            [msg c] (alts!! (into [server-chan add-chan] client-chans))]
+        (cond
+          (= c server-chan)
+          (do
+            (doseq [{:keys [out]} clients]
+              (.println out msg))
+            (println msg)
+            (recur add-chan server clients))
 
-            :else (do
-                    (println v)
-                    (recur chans))))))
+          (client-chans c)
+          (if msg
+            (do
+              (println (str "> " msg))
+              (.println (:out server) msg)
+              (recur add-chan server clients))
+            ; client disconnect
+            (do
+              (println (format "%4d clients" (dec (count clients))))
+              (recur add-chan
+                     server
+                     ; FIXME: make this efficient
+                     (disj clients (first (filter
+                                            #(= c (:chan %))
+                                            clients))))))
 
-    (start-server server-chan)
-
-    (<!! quit)))
+          (= c add-chan)
+          (do
+            (println (format "%4d clients" (inc (count clients))))
+            (recur add-chan server (conj clients (irc/client msg)))))))))

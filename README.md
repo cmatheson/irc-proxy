@@ -1,13 +1,14 @@
 # \<INSERT CLEVER PROJECT NAME HERE>
 
-This is going to be an IRC proxy.  Right now it's an IRC... vacuum?
+This is almost an IRC proxy.
 
 ## Usage
 
     lein run
 
-You can connect irc clients to this thing (port 6667) and it will tell you how
-many clients are connected and print out everything those clients say.
+This will connect to freenode.  You can connect to it (localhost:6667) with
+any number of telnet/nc/socket connections and interact with freenode that way.
+Soon this will work for IRC clients too.
 
 ## License
 
