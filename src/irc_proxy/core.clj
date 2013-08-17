@@ -19,36 +19,31 @@
 
     (loop [add-chan (server-chan)
            server (irc/server "irc.freenode.net" 6667)
-           clients #{}]
+           clients {}]
 
       (let [server-chan (:chan server)
-            client-chans (set (map :chan clients))
+            client-chans (keys clients)
             [msg c] (alts!! (into [server-chan add-chan] client-chans))]
         (cond
           (= c server-chan)
           (do
-            (doseq [{:keys [out]} clients]
+            (doseq [[_ {:keys [out]}] clients]
               (.println out msg))
-            (println msg)
-            (recur add-chan server clients))
+            (recur add-chan (irc/handle-server-in msg server clients) clients))
 
-          (client-chans c)
-          (if msg
-            (do
-              (println (str "> " msg))
-              (.println (:out server) msg)
-              (recur add-chan server clients))
-            ; client disconnect
-            (do
-              (println (format "%4d clients" (dec (count clients))))
-              (recur add-chan
-                     server
-                     ; FIXME: make this efficient
-                     (disj clients (first (filter
-                                            #(= c (:chan %))
-                                            clients))))))
+          (clients c)
+          (let [client (clients c)]
+            (if msg
+              (let [client (irc/handle-client-in msg client server)]
+                (recur add-chan server (assoc clients c client)))
+              ; client disconnect
+              (do
+                (println (format "%4d clients" (dec (count clients))))
+                (recur add-chan
+                       server
+                       (dissoc clients c)))))
 
           (= c add-chan)
-          (do
+          (let [client (irc/client msg)]
             (println (format "%4d clients" (inc (count clients))))
-            (recur add-chan server (conj clients (irc/client msg)))))))))
+            (recur add-chan server (assoc clients (client :chan) client))))))))

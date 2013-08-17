@@ -45,17 +45,88 @@
   (let [c (chan)
         socket (Socket. host port)
         in (io/reader socket)
-        out (PrintWriter. (.getOutputStream socket) true)]
+        out (PrintWriter. (.getOutputStream socket) true)
+        nick "ircproxy"
+        chatnet "freenode"]
     (thread
-      (.println out "NICK ircproxy")
+      (.println out (str "NICK " nick))
       (.println out "USER ircproxy 0 * :IRC Proxy")
       (doseq [l (line-seq in)]
-        (let [{:keys [command prefix params]} (parse l)]
-          ; FIXME: this stuff should get logged but not passed on to
-          ; clients
-          (case command
-            "PING" (.println out (str "PONG " (first params)))
-            "433"  (.println out "NICK ircproxy_") ; FIXME
-            (>!! c l))))
+        (>!! c l))
       (close! c)) ; TODO: reconnect instead
-    {:chan c :out out :socket socket}))
+    {:chan c :out out :socket socket :nick nick :chatnet chatnet}))
+
+(defn handle-server-in
+  [msg server clients]
+  (println msg)
+  (let [{:keys [prefix command params]} (parse msg)
+        out (server :out)]
+    ; FIXME: this stuff should get logged but not passed on to
+    ; clients
+    (case command
+      "PING"
+      (do
+        (.println out (str "PONG " (first params)))
+        server)
+
+      ("001" "002" "003" "004")
+      (let [server (assoc server :prefix prefix)
+            [_ & params] params ; first param might be the wrong nick for client
+            reg-msg {:params params :command command}]
+        (update-in server [:registration-messages]
+                   #(conj (or % []) reg-msg)))
+
+      "NICK"
+      (assoc server :nick (first params))
+
+      "433"
+      (do
+        (.println out "NICK ircproxy_") ; FIXME
+        server)
+
+      ; else
+      server)))
+
+(defn handle-client-in
+  [msg client server]
+  (let [{:keys [command params]} (parse msg)
+        out (client :out)
+        pass (fn []
+               (.println (:out server) msg)
+               client)]
+    (println (str "> " msg))
+    (case command
+      "NICK"
+      (if (:registered client)
+        (pass)
+        (assoc client :nick (first params)))
+
+      "USER"
+      (if (:registered client)
+        (pass)
+        (let [prefix (server :prefix)]
+          (doseq [{:keys [command params]} (server :registration-messages)]
+            (.println out (format ":%s %s %s %s"
+                                  prefix
+                                  command
+                                  (client :nick)
+                                  (string/join " " params))))
+          (.println out (format ":%s NICK %s" (client :nick) (server :nick)))
+          (-> client
+              (dissoc :nick)
+              (assoc :registered true))))
+
+      "PING"
+      (let [prefix (server :chatnet)
+            target (first params)]
+        (.println out (format ":%s PONG %s" prefix target))
+        client)
+
+      "QUIT"
+      (do
+        ; TODO: set away if all clients are disconnected
+        (.close (client :socket))
+        client)
+
+      ; else
+      (pass))))

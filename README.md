@@ -1,14 +1,20 @@
 # \<INSERT CLEVER PROJECT NAME HERE>
 
-This is almost an IRC proxy.
+This is kind of an IRC proxy.
 
 ## Usage
 
     lein run
 
-This will connect to freenode.  You can connect to it (localhost:6667) with
-any number of telnet/nc/socket connections and interact with freenode that way.
-Soon this will work for IRC clients too.
+Connects to freenode.  You can connect to it (localhost:6667) with
+any number of IRC clients and many things will work properly.
+
+## TODO
+
+  * relay privmsg's to all clients
+  * notify client of current channels after connecting
+  * config file
+    * passwords, multiple chatnets, etc.
 
 ## License
 
