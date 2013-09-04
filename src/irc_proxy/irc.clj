@@ -19,6 +19,14 @@
       (conj params trailing)
       params)))
 
+(defn parse-prefix
+  "returns the components of a prefix
+
+   (actually right now just the nick, but we'll do the rest as necessary"
+  [prefix]
+  {:nick (re-find #"[^!]+" prefix)})
+
+
 (defn parse
   "parses an irc message into prefix, command, and params list"
   [msg]
@@ -76,6 +84,15 @@
         (update-in server [:registration-messages]
                    #(conj (or % []) reg-msg)))
 
+      ; TODO: for now we can be lame but eventually we should track channel
+      ; names/topics ourselves
+      "JOIN"
+      (let [channel (first params)
+            {:keys [nick]} (parse-prefix prefix)]
+        (if (= nick (server :nick))
+          (update-in server [:channels] #(conj (or % #{}) channel))
+          server))
+
       "NICK"
       (assoc server :nick (first params))
 
@@ -88,7 +105,7 @@
       server)))
 
 (defn handle-client-in
-  [msg client server]
+  [msg client server clients]
   (let [{:keys [command params]} (parse msg)
         out (client :out)
         pass (fn []
@@ -111,7 +128,14 @@
                                   command
                                   (client :nick)
                                   (string/join " " params))))
+
           (.println out (format ":%s NICK %s" (client :nick) (server :nick)))
+
+          (doseq [channel (server :channels)]
+            (.println out (format ":%s JOIN %s" (server :nick) channel))
+            (.println (server :out) (str "TOPIC " channel))
+            (.println (server :out) (str "NAMES " channel)))
+
           (-> client
               (dissoc :nick)
               (assoc :registered true))))
@@ -127,6 +151,13 @@
         ; TODO: set away if all clients are disconnected
         (.close (client :socket))
         client)
+
+      "PRIVMSG"
+      (let [clients (set (vals clients))
+            other-clients (disj clients client)]
+        (doseq [c other-clients]
+          (.println (c :out) (format ":%s %s" (server :nick) msg)))
+        (pass))
 
       ; else
       (pass))))

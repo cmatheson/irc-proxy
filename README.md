@@ -1,6 +1,6 @@
 # \<INSERT CLEVER PROJECT NAME HERE>
 
-This is kind of an IRC proxy.
+This is mostly of an IRC proxy.
 
 ## Usage
 
@@ -11,8 +11,7 @@ any number of IRC clients and many things will work properly.
 
 ## TODO
 
-  * relay privmsg's to all clients
-  * notify client of current channels after connecting
+  * track channel info (topic/nicks/etc)
   * config file
     * passwords, multiple chatnets, etc.
 

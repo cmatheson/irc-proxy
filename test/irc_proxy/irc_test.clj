@@ -24,3 +24,10 @@
            (parse ":bob JOIN #foo #bar")))
     (is (= {:prefix nil :command "PRIVMSG" :params ["#foo" ""]}
            (parse "PRIVMSG #foo :")))))
+
+(deftest parse-prefix-test
+  (testing "nick"
+    (is (= {:nick "nick"}
+           (parse-prefix "nick!~user@example.com")))
+    (is (= {:nick "nick"}
+           (parse-prefix "nick")))))

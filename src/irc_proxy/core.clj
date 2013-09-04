@@ -34,7 +34,7 @@
           (clients c)
           (let [client (clients c)]
             (if msg
-              (let [client (irc/handle-client-in msg client server)]
+              (let [client (irc/handle-client-in msg client server clients)]
                 (recur add-chan server (assoc clients c client)))
               ; client disconnect
               (do
