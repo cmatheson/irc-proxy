@@ -1,4 +1,4 @@
-# \<INSERT CLEVER PROJECT NAME HERE>
+# B-ouncé
 
 This is mostly of an IRC proxy.
 

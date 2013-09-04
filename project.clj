@@ -1,5 +1,5 @@
 (defproject irc-proxy "0.1.0-SNAPSHOT"
-  :description "IRC Proxy (like bip, but better)"
+  :description "B-ouncé (IRC Proxy)"
   :url "http://github.com/cmatheson/irc-proxy"
   :license {:name "GNU General Public License"
             :url "http://www.gnu.org/licenses/gpl.html"}
